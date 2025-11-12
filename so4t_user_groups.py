@@ -1,5 +1,5 @@
 '''
-This Python script is a working proof of concept example of using Stack Overflow APIs for adding user to user groups. 
+This Python script is a working proof of concept example of using Stack Internal APIs for adding user to user groups. 
 If you run into difficulties, please leave feedback in the Github Issues.
 '''
 
@@ -24,10 +24,10 @@ def main():
     # Collect group and user data
     group_data = v3client.get_all_user_groups()
 
-    if v2client.soe: # Stack Overflow Enterprise has email addresses via API v2
+    if v2client.soe: # Stack Internal (Enterprise) has email addresses via API v2
         user_data = get_user_data(v2client)
-    else: # Stack Overflow Business or Basic requires email addresses via CSV import
-        print("SO4T Business is not supported yet. Exiting script...")
+    else: # Stack Internal (Business) or Basic requires email addresses via CSV import
+        print("Stack Internal (Business) is not supported yet. Exiting script...")
         raise SystemExit
         # user_data = read_csv(args.users)
 
@@ -42,21 +42,21 @@ def get_args():
     parser = argparse.ArgumentParser(
         prog='so4t_user_groups.py',
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description='Uses the Stack Overflow for Teams API to create/update user groups.',
-        epilog = 'Example for Stack Overflow Enterprise: \n'
+        description='Uses the Stack Internal API to create/update user groups.',
+        epilog = 'Example for Stack Internal (Enterprise): \n'
                 'python3 so4t_user_groups.py --url "https://SUBDOMAIN.stackenterprise.co" '
                 '--key "YOUR_KEY" --token "YOUR_TOKEN" --csv "users.csv"\n\n')
     
     parser.add_argument('--url', 
                         type=str,
-                        help='[Required] Base URL for your Stack Overflow for Teams instance.')
+                        help='[Required] Base URL for your Stack Internal instance.')
     parser.add_argument('--key',
                         type=str,
-                        help='[Required for Stack Overflow Enterprise] API key for your Stack '
-                        'Overflow for Teams instance.')
+                        help='[Required for Stack Internal (Enterprise)] API key for your Stack '
+                        'Internal instance.')
     parser.add_argument('--token',
                         type=str,
-                        help='[Required] API token for your Stack Overflow for Teams instance.')
+                        help='[Required] API token for your Stack Internal instance.')
     parser.add_argument('--csv',
                         type=str,
                         help='[Required] Path to CSV file with users to add to groups.')
@@ -76,7 +76,7 @@ def read_csv(file_path):
 def get_user_data(v2client):
 
     filter_attributes = [
-            "user.email" # email is only available for Stack Overflow Enterprise
+            "user.email" # email is only available for Stack Internal (Enterprise)
     ]
     filter_string = v2client.create_filter(filter_attributes)
 
@@ -112,14 +112,14 @@ def process_csv(file_path, user_data, group_data):
                 row['user_email_or_id'], user_data, 'email', 'user_id')
         
         if not group_id: # `convert_string_to_id` returns `None` if no match is found for group ID
-            print(f"[WARNING] Group ({row['group_name_or_id']}) not found in Stack Overflow for "
-                   "Teams. Skipping group...{NEW_LINE}")
+            print(f"[WARNING] Group ({row['group_name_or_id']}) not found in Stack Internal. "
+                   "Skipping group...{NEW_LINE}")
             continue
         elif not user_id or type(user_id) == str:
             # `convert_string_to_id` returns `None` if no match is found for user ID
             # `convert_string_to_id` returns the original string if no match is found for email
-            print(f"[WARNING] User ({row['user_email_or_id']}) not found in Stack Overflow for "
-                  "Teams. Skipping user...{NEW_LINE}")
+            print(f"[WARNING] User ({row['user_email_or_id']}) not found in Stack Internal. "
+                  "Skipping user...{NEW_LINE}")
             continue
     
         if group_id not in payload_data.keys():

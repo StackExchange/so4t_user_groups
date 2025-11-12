@@ -26,11 +26,11 @@ class V3Client(object):
                 'User-Agent': 'so4t_user_groups/1.0 (http://your-app-url.com; your-contact@email.com)'
             }
 
-        if "stackoverflowteams.com" in args.url: # Stack Overflow Business or Basic
+        if "stackoverflowteams.com" in args.url: # Stack Internal (Business) or Basic
             self.team_slug = args.url.split("https://stackoverflowteams.com/c/")[1]
             self.api_url = f"https://api.stackoverflowteams.com/v3/teams/{self.team_slug}"
             self.soe = False
-        else: # Stack Overflow Enterprise
+        else: # Stack Internal (Enterprise)
             self.api_url = args.url + "/api/v3"
             self.soe = True
 
