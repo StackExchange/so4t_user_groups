@@ -3,7 +3,7 @@ An API script for Stack Internal that adds users to user groups based on the con
 
 ## Requirements
 * An instance of Stack Internal (Enterprise) (no support for Business tier yet)
-* Python 3.7 or higher ([download](https://www.python.org/downloads/))
+* Python 3.10 or higher ([download](https://www.python.org/downloads/))
 * Operating system: Linux, MacOS, or Windows
 
 ## Setup

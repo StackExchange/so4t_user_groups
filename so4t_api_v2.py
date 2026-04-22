@@ -4,6 +4,9 @@ import time
 # Third-party libraries
 import requests
 
+# Local libraries
+import so4t_request_validate
+
 
 class V2Client(object):
 
@@ -133,9 +136,14 @@ class V2Client(object):
                 print(f"Getting page {params['page']} from {endpoint_url}")
             else:
                 print(f"Getting data from {endpoint_url}")
-            response = requests.get(endpoint_url, headers=self.headers, params=params, 
-                                    verify=self.ssl_verify)
-            
+            try:
+                response = requests.get(endpoint_url, headers=self.headers, params=params,
+                                        verify=self.ssl_verify,
+                                        timeout=so4t_request_validate.timeout)
+            except Exception as ex:
+                so4t_request_validate.handle_except(ex)
+                continue
+
             if response.status_code != 200:
                 # Many API call failures result in an HTTP 400 status code (Bad Request)
                 # To understand the reason for the 400 error, specific API error codes can be 
@@ -154,8 +162,11 @@ class V2Client(object):
             # Rate limiting documentation: https://api.stackexchange.com/docs/throttle
             if response.json().get('backoff'):
                 backoff_time = response.json().get('backoff') + 1
+                so4t_request_validate.last_api_backoff = backoff_time
                 print(f"API backoff request received. Waiting {backoff_time} seconds...")
                 time.sleep(backoff_time)
+            else:
+                so4t_request_validate.last_api_backoff = 0
 
             params['page'] += 1
 
