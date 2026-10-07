@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stack Internal user groups</title>
+  <style>
+    :root { color-scheme: light; font: 16px/1.5 system-ui, sans-serif; background: #f5f6f8; color: #242729; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-width: 960px; margin: 0 auto; padding: 32px 20px 64px; }
+    h1, h2 { line-height: 1.2; }
+    h1 { margin: 0 0 8px; font-size: 2rem; }
+    h2 { margin: 0 0 16px; font-size: 1.25rem; }
+    p { margin: 0 0 16px; }
+    .muted { color: #59636e; }
+    .card { background: white; border: 1px solid #d6d9dc; border-radius: 10px; padding: 24px; margin-top: 20px; box-shadow: 0 2px 8px #2427290a; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+    label { display: block; font-weight: 650; margin-bottom: 6px; }
+    input { width: 100%; border: 1px solid #89919a; border-radius: 5px; padding: 10px 12px; font: inherit; background: white; color: inherit; }
+    input:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid #6bbbf7; outline-offset: 2px; }
+    .hint { color: #59636e; font-size: .875rem; margin: 5px 0 0; }
+    .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 20px; }
+    button, .button-link { display: inline-block; border: 1px solid #0a5f9e; border-radius: 5px; padding: 9px 15px; font: inherit; font-weight: 650; cursor: pointer; background: #0a6db5; color: white; text-decoration: none; }
+    button.secondary, .button-link { background: white; color: #0a5f9e; }
+    button:disabled { cursor: not-allowed; opacity: .5; }
+    .status { border-radius: 6px; padding: 12px 14px; background: #e7f2fa; border: 1px solid #a6cee9; margin-top: 20px; }
+    .status.error { background: #fff0ed; border-color: #e8aaa0; }
+    .status.success { background: #edf7ed; border-color: #a4d5a2; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 8px; border-bottom: 1px solid #e3e6e8; text-align: left; vertical-align: top; }
+    th { font-size: .875rem; color: #59636e; }
+    td:first-child, th:first-child { white-space: nowrap; }
+    .empty { color: #59636e; }
+    ol { margin: 0; padding-left: 22px; }
+    li + li { margin-top: 6px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Stack Internal user groups</h1>
+    <p class="muted">Add users to existing groups or create new groups from a CSV file using API v3.</p>
+
+    <section class="card" aria-labelledby="setup-heading">
+      <h2 id="setup-heading">1. Connect and choose a CSV</h2>
+      <div class="grid">
+        <div>
+          <label for="site-url">Stack Internal site URL</label>
+          <input id="site-url" type="url" placeholder="https://your-site.stackenterprise.co" autocomplete="url" required>
+          <p class="hint">Use the site root, without /api/v3.</p>
+        </div>
+        <div>
+          <label for="access-token">OAuth access token</label>
+          <input id="access-token" type="password" autocomplete="off" spellcheck="false" required>
+          <p class="hint">The token needs permission to write user groups. It stays in this page's memory.</p>
+        </div>
+        <div>
+          <label for="csv-file">CSV file</label>
+          <input id="csv-file" type="file" accept=".csv,text/csv" required>
+          <p class="hint">Columns: user_email_or_id, group_name_or_id.</p>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="review-button" type="button">Review changes</button>
+        <button id="template-button" type="button" class="secondary">Download CSV template</button>
+      </div>
+    </section>
+
+    <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+
+    <section id="review-section" class="card" aria-labelledby="review-heading" hidden>
+      <h2 id="review-heading">2. Review changes</h2>
+      <p id="review-summary"></p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Group</th><th>Action</th><th>Users to add</th></tr></thead>
+          <tbody id="changes-body"></tbody>
+        </table>
+      </div>
+      <h2 style="margin-top:24px">Skipped rows</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>CSV row</th><th>Reason</th></tr></thead>
+          <tbody id="skipped-body"></tbody>
+        </table>
+      </div>
+      <div class="actions">
+        <button id="apply-button" type="button" disabled>Apply changes</button>
+      </div>
+    </section>
+
+    <section id="results-section" class="card" aria-labelledby="results-heading" hidden>
+      <h2 id="results-heading">Results</h2>
+      <ol id="results-list"></ol>
+    </section>
+
+    <p class="hint" style="margin-top:24px">Browser access to the API requires the page to be served from an origin the API permits. If requests are blocked, see the README's browser access instructions.</p>
+  </main>
+
+  <script>
+  (() => {
+    'use strict';
+
+    const $ = id => document.getElementById(id);
+    const fields = ['site-url', 'access-token', 'csv-file'];
+    let plan = null;
+    let busy = false;
+
+    function status(message, kind = '') {
+      const el = $('status');
+      el.textContent = message;
+      el.className = `status ${kind}`;
+      el.hidden = false;
+    }
+
+    function invalidateReview() {
+      plan = null;
+      $('review-section').hidden = true;
+      $('results-section').hidden = true;
+      $('apply-button').disabled = true;
+      if (!busy) $('status').hidden = true;
+    }
+
+    function setBusy(value) {
+      busy = value;
+      $('review-button').disabled = value;
+      $('apply-button').disabled = value || !plan || plan.changes.length === 0;
+      for (const id of fields) $(id).disabled = value;
+    }
+
+    function siteApiUrl(raw) {
+      let url;
+      try { url = new URL(raw.trim()); }
+      catch { throw new Error('Enter a valid Stack Internal site URL.'); }
+      const local = ['localhost', '127.0.0.1'].includes(url.hostname);
+      if ((url.protocol !== 'https:' && !(local && url.protocol === 'http:')) ||
+          url.username || url.password || url.search || url.hash || url.pathname.replace(/\/+$/, '') !== '') {
+        throw new Error('Enter an HTTPS site root URL, without a path, query, or credentials.');
+      }
+      return `${url.origin}/api/v3`;
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [], field = '', quoted = false, afterQuote = false;
+      text = text.replace(/^\uFEFF/, '');
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (quoted) {
+          if (char === '"' && text[i + 1] === '"') { field += '"'; i++; }
+          else if (char === '"') { quoted = false; afterQuote = true; }
+          else { field += char; }
+        } else if (afterQuote) {
+          if (char === ',') { row.push(field); field = ''; afterQuote = false; }
+          else if (char === '\r' || char === '\n') {
+            row.push(field); rows.push(row); row = []; field = ''; afterQuote = false;
+            if (char === '\r' && text[i + 1] === '\n') i++;
+          } else if (char !== ' ' && char !== '\t') {
+            throw new Error(`Invalid character after a closing quote near CSV row ${rows.length + 1}.`);
+          }
+        } else if (char === '"') {
+          if (field.trim()) throw new Error(`Unexpected quote near CSV row ${rows.length + 1}.`);
+          field = ''; quoted = true;
+        } else if (char === ',') {
+          row.push(field); field = '';
+        } else if (char === '\r' || char === '\n') {
+          row.push(field); rows.push(row); row = []; field = '';
+          if (char === '\r' && text[i + 1] === '\n') i++;
+        } else { field += char; }
+      }
+      if (quoted) throw new Error('The CSV has an unclosed quoted field.');
+      if (row.length || field || afterQuote) { row.push(field); rows.push(row); }
+      if (!rows.length) throw new Error('The CSV file is empty.');
+      const header = rows.shift().map(value => value.trim().toLowerCase());
+      if (header.length !== 2 || header[0] !== 'user_email_or_id' || header[1] !== 'group_name_or_id') {
+        throw new Error('CSV headers must be user_email_or_id,group_name_or_id in that order.');
+      }
+      return rows.map((values, index) => ({ number: index + 2, values: values.map(value => value.trim()) }))
+        .filter(row => row.values.some(Boolean));
+    }
+
+    function positiveId(value) {
+      return /^\d+$/.test(value) && Number.isSafeInteger(Number(value)) && Number(value) > 0 && Number(value) <= 2147483647;
+    }
+
+    function normalizeName(value) { return value.trim().toLocaleLowerCase(); }
+
+    function errorMessage(response, body) {
+      const detail = body && typeof body === 'object' && (body.detail || body.title || body.message);
+      return `API request failed (${response.status}${response.statusText ? ' ' + response.statusText : ''})${typeof detail === 'string' ? ': ' + detail : ''}.`;
+    }
+
+    async function apiRequest(api, token, path, method = 'GET', body) {
+      let response;
+      for (let attempt = 0; ; attempt++) {
+        try {
+          response = await fetch(api + path, {
+            method,
+            headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+            body: body === undefined ? undefined : JSON.stringify(body),
+            cache: 'no-store',
+            referrerPolicy: 'no-referrer'
+          });
+        } catch {
+          throw new Error('Could not reach the API. Check the site URL, network, and browser CORS permissions for this page.');
+        }
+        if (method !== 'GET' || response.status !== 429 || attempt >= 3) break;
+        const retryAfter = Number(response.headers.get('Retry-After'));
+        const seconds = Math.min(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 2 ** (attempt + 1), 60);
+        status(`API rate limit reached. Retrying in ${seconds} seconds…`);
+        await new Promise(resolve => setTimeout(resolve, seconds * 1000));
+      }
+      let data = null;
+      const raw = await response.text();
+      if (raw) {
+        try { data = JSON.parse(raw); }
+        catch { data = raw; }
+      }
+      if (!response.ok) {
+        const error = new Error(errorMessage(response, data));
+        error.status = response.status;
+        throw error;
+      }
+      return data;
+    }
+
+    async function allGroups(api, token) {
+      const groups = [];
+      for (let page = 1; ; page++) {
+        status(`Loading user groups (page ${page})…`);
+        const data = await apiRequest(api, token, `/user-groups?page=${page}&pageSize=100`);
+        if (!data || !Array.isArray(data.items) || !Number.isInteger(data.totalPages)) {
+          throw new Error('The API returned an unexpected user group list.');
+        }
+        groups.push(...data.items);
+        if (page >= data.totalPages) return groups;
+      }
+    }
+
+    async function resolveUsers(rows, api, token) {
+      const lookup = new Map();
+      const users = [...new Set(rows.map(row => row.values[0]).filter(Boolean))];
+      for (let i = 0; i < users.length; i++) {
+        const value = users[i];
+        status(`Looking up users (${i + 1} of ${users.length})…`);
+        const path = /^\d+$/.test(value)
+          ? (positiveId(value) ? `/users/${Number(value)}` : null)
+          : `/users/by-email/${encodeURIComponent(value)}`;
+        if (!path) { lookup.set(value, null); continue; }
+        try {
+          const user = await apiRequest(api, token, path);
+          lookup.set(value, user && Number.isInteger(user.id) && user.id > 1 ? user.id : null);
+        } catch (error) {
+          if (error.status === 404) lookup.set(value, null);
+          else throw error;
+        }
+      }
+      return lookup;
+    }
+
+    function buildPlan(rows, groups, users) {
+      const byId = new Map(groups.map(group => [String(group.id), group]));
+      const byName = new Map();
+      for (const group of groups) {
+        const name = normalizeName(group.name);
+        if (!byName.has(name)) byName.set(name, []);
+        byName.get(name).push(group);
+      }
+      const changes = new Map(), skipped = [];
+      for (const row of rows) {
+        if (row.values.length !== 2 || !row.values[0] || !row.values[1]) {
+          skipped.push({ number: row.number, reason: 'Missing a user or group value, or an extra column.' });
+          continue;
+        }
+        const [userValue, groupValue] = row.values;
+        const userId = users.get(userValue);
+        if (!userId) {
+          skipped.push({ number: row.number, reason: `User ${userValue} was not found.` });
+          continue;
+        }
+        let group;
+        if (/^\d+$/.test(groupValue)) {
+          group = positiveId(groupValue) ? byId.get(String(Number(groupValue))) : null;
+          if (!group) {
+            skipped.push({ number: row.number, reason: `Group ID ${groupValue} was not found.` });
+            continue;
+          }
+        } else {
+          const matches = byName.get(normalizeName(groupValue)) || [];
+          if (matches.length > 1) {
+            skipped.push({ number: row.number, reason: `More than one group matches ${groupValue}. Use a group ID.` });
+            continue;
+          }
+          group = matches[0];
+        }
+        const key = group ? `id:${group.id}` : `new:${normalizeName(groupValue)}`;
+        if (!changes.has(key)) {
+          changes.set(key, {
+            groupId: group ? group.id : null,
+            name: group ? group.name : groupValue,
+            userIds: new Set(),
+            labels: new Map(),
+            existingIds: new Set(group && Array.isArray(group.users) ? group.users.map(user => user.id) : [])
+          });
+        }
+        const change = changes.get(key);
+        if (change.existingIds.has(userId) || change.userIds.has(userId)) {
+          skipped.push({ number: row.number, reason: `User ${userValue} is already listed for ${change.name}.` });
+        } else {
+          change.userIds.add(userId);
+          change.labels.set(userId, userValue);
+        }
+      }
+      return { changes: [...changes.values()].filter(change => change.userIds.size > 0), skipped };
+    }
+
+    function addCell(row, value) {
+      const cell = document.createElement('td');
+      cell.textContent = String(value);
+      row.appendChild(cell);
+    }
+
+    function renderPlan(nextPlan) {
+      const changesBody = $('changes-body'), skippedBody = $('skipped-body');
+      changesBody.replaceChildren(); skippedBody.replaceChildren();
+      for (const change of nextPlan.changes) {
+        const row = document.createElement('tr');
+        addCell(row, change.name);
+        addCell(row, change.groupId === null ? 'Create group and add members' : 'Add members');
+        addCell(row, [...change.userIds].map(id => `${change.labels.get(id)} (ID ${id})`).join(', '));
+        changesBody.appendChild(row);
+      }
+      if (!nextPlan.changes.length) {
+        const row = document.createElement('tr'); addCell(row, 'No changes to apply'); changesBody.appendChild(row);
+      }
+      for (const skipped of nextPlan.skipped) {
+        const row = document.createElement('tr');
+        addCell(row, skipped.number); addCell(row, skipped.reason);
+        skippedBody.appendChild(row);
+      }
+      if (!nextPlan.skipped.length) {
+        const row = document.createElement('tr'); addCell(row, 'None'); skippedBody.appendChild(row);
+      }
+      const count = nextPlan.changes.reduce((total, change) => total + change.userIds.size, 0);
+      $('review-summary').textContent = `${count} membership${count === 1 ? '' : 's'} across ${nextPlan.changes.length} group${nextPlan.changes.length === 1 ? '' : 's'}; ${nextPlan.skipped.length} skipped CSV row${nextPlan.skipped.length === 1 ? '' : 's'}.`;
+      $('review-section').hidden = false;
+    }
+
+    async function review() {
+      invalidateReview();
+      setBusy(true);
+      try {
+        const api = siteApiUrl($('site-url').value);
+        const token = $('access-token').value.trim();
+        const file = $('csv-file').files[0];
+        if (!token) throw new Error('Enter an OAuth access token.');
+        if (!file) throw new Error('Choose a CSV file.');
+        const rows = parseCsv(await file.text());
+        if (!rows.length) throw new Error('The CSV has no data rows.');
+        const groups = await allGroups(api, token);
+        const users = await resolveUsers(rows.filter(row => row.values.length === 2), api, token);
+        plan = { api, token, ...buildPlan(rows, groups, users) };
+        renderPlan(plan);
+        status(plan.changes.length ? 'Review the planned changes, then select Apply changes.' : 'There are no changes to apply.', plan.changes.length ? '' : 'success');
+      } catch (error) { status(error.message, 'error'); }
+      finally { setBusy(false); }
+    }
+
+    async function apply() {
+      if (!plan || !plan.changes.length) return;
+      setBusy(true);
+      $('results-section').hidden = false;
+      const results = $('results-list'); results.replaceChildren();
+      let completed = 0;
+      try {
+        for (const change of plan.changes) {
+          status(`Applying group ${completed + 1} of ${plan.changes.length}: ${change.name}…`);
+          const ids = [...change.userIds];
+          const result = change.groupId === null
+            ? await apiRequest(plan.api, plan.token, '/user-groups', 'POST', { name: change.name, description: '', userIds: ids })
+            : await apiRequest(plan.api, plan.token, `/user-groups/${change.groupId}/members`, 'POST', ids);
+          const item = document.createElement('li');
+          item.textContent = `${change.groupId === null ? 'Created' : 'Updated'} ${result && result.name ? result.name : change.name}: ${ids.length} user${ids.length === 1 ? '' : 's'} added.`;
+          results.appendChild(item);
+          completed++;
+        }
+        status(`Done. Applied ${completed} group change${completed === 1 ? '' : 's'}.`, 'success');
+      } catch (error) {
+        status(`Stopped after ${completed} of ${plan.changes.length} groups. ${error.message} Review the CSV again before retrying; earlier changes may already be saved.`, 'error');
+      } finally {
+        plan = null;
+        setBusy(false);
+      }
+    }
+
+    for (const id of fields) $(id).addEventListener('input', invalidateReview);
+    $('review-button').addEventListener('click', review);
+    $('apply-button').addEventListener('click', apply);
+    $('template-button').addEventListener('click', () => {
+      const blob = new Blob(['user_email_or_id,group_name_or_id\r\n'], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url; link.download = 'users.csv'; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+  })();
+  </script>
+</body>
+</html>

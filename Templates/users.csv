@@ -1,8 +1,1 @@
 user_email_or_id,group_name_or_id
-Insert a user’s email address or Stack Overflow for Teams User ID here,"Insert a user group’s name or ID here. If a user group name does not already exist, it will be created."
-person1@company.com,New user group name
-person1@company.com,Existing user group name
-person2@company.com,1039
-28069,1039
-42,New user group name
-777,Existing user group name

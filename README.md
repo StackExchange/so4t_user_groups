@@ -1,57 +1,38 @@
-# Stack Internal User Groups (so4t_user_groups)
-An API script for Stack Internal that adds users to user groups based on the contents of a CSV file.
+# Stack Internal user groups
 
-## Requirements
-* An instance of Stack Internal (Enterprise) (no support for Business tier yet)
-* Python 3.10 or higher ([download](https://www.python.org/downloads/))
-* Operating system: Linux, MacOS, or Windows
+Use [so4t_user_groups.html](so4t_user_groups.html) to add users to existing user groups or create new groups from a CSV file. It is a single, standalone HTML page with no Python installation or other dependencies. The page uses **Stack Internal API v3 only**.
 
-## Setup
+The Python scripts are kept for historical reference. They depend on the sunset API v2 and are not the supported way to run this tool.
 
-[Download](https://github.com/StackExchange/so4t_user_groups/archive/refs/heads/main.zip) and unpack the contents of this repository
+## What you need
 
-**Installing Dependencies**
+- A Stack Internal Enterprise site and permission to manage user groups.
+- An OAuth access token with the API v3 `write_access` scope. Generate one using the [OAuth and PKCE guide](https://support.stackenterprise.co/support/solutions/articles/22000294542-secure-api-token-generation-with-oauth-and-pkce). The account must also be allowed to look up the users in the CSV; API v3 only exposes user email addresses to administrators or the current user.
+- A CSV file with these exact columns, in this order:
 
-* Open a terminal window (or, for Windows, a command prompt)
-* Navigate to the directory where you unpacked the files
-* Install the dependencies: `pip3 install -r requirements.txt`
+  ```csv
+  user_email_or_id,group_name_or_id
+  person1@company.com,Engineering
+  28069,1039
+  ```
 
+Each row adds one user to one group. Use a user email address or numeric user ID in the first column, and a group name or numeric group ID in the second. A name that does not exist creates a new group. A numeric group ID must already exist. You can download an empty CSV template from the HTML page or use [Templates/users.csv](Templates/users.csv).
 
-**API Authentication**
+## Run the page
 
-For the Business tier, you'll need a [personal access token](https://stackoverflowteams.help/en/articles/4385859-stack-overflow-for-teams-api) (PAT). You'll need to obtain an API key and an access token for Enterprise. Documentation for creating an Enterprise key and token can be found within your instance at this url: `https://[your_site]/api/docs/authentication`
+1. Open [so4t_user_groups.html](so4t_user_groups.html) in a browser.
+2. Enter the **site root URL** (for example, `https://your-site.stackenterprise.co`), your OAuth access token, and the CSV file.
+3. Select **Review changes**. The page looks up users and groups through API v3 and shows what it will add or create, along with any skipped rows.
+4. Select **Apply changes** after reviewing the list. This sends API v3 requests that change group membership and may create groups. If a request fails, the page stops; earlier group changes may already be saved. Run **Review changes** again before retrying.
 
-**Generating an Access Token (Enterprise)**
+The token and CSV stay in the browser tab; the page does not save them in browser storage. The browser sends the token and the needed CSV values to your Stack Internal API. Close the tab when finished.
 
-For secure Access Token generation, follow the [Secure API Token Generation with OAuth and PKCE](https://support.stackenterprise.co/support/solutions/articles/22000294542-secure-api-token-generation-with-oauth-and-pkce) guide.
+### Browser access to the API
 
-**Note on Access Token Requirements:**
-While API v3 now generally allows querying with just an API key for most GET requests, certain paths and data (e.g., `/images` and the email attribute on a `User` object) still specifically require an Access Token for access. If you encounter permissions errors on such paths, ensure you are using an Access Token.
+The HTML file is self-contained, but browser security still controls whether it can call your Stack Internal site. If you open it as a local `file://` page and the API does not allow that origin, the browser blocks requests. Serve the same HTML file from the Stack Internal site's origin, or from an origin that your API administrator has allowed for CORS. The API must allow the page's origin, `Authorization` and `Content-Type` headers, and `GET` and `POST` methods. Serving the file from `localhost` alone does not grant access to a different API origin.
 
+If **Review changes** reports that it cannot reach the API, check the URL, network access, token, and the browser's developer console for CORS errors. A successful request from a command-line client does not establish that browser access is allowed.
 
-**Populate the CSV template**
+## Support
 
-In the [Templates folder](https://github.com/StackExchange/so4t_user_groups/tree/main/Templates), you'll find a CSV file called `users.csv`. This is the file you'll use to indicate which users you want to be added to which user groups. 
-
-There are two columns in the CSV:
-* `user_email_or_id` - the unique identifier for the user that you want to assign to a user group. You can use either the user's email address or Stack Internal user ID. If neither the email address nor the user ID exist in your Stack Internal database, the script will skip that row and notify you via the terminal window.
-* `group_name_or_id` - the unique identifier for the user group that you want to assign to the user. You can use either a group name or group ID. If you use a name that doesn't exist, the script will create a new user group with that name.
-
-Only a single user and group can be added per line. If you'd like to add multiple users to a single group, you'll need to create a separate line for each user. Likewise, if you'd like to add a single user to multiple groups, you'll need to create a separate line for each group.
-
-## Usage
-
-In a terminal window, navigate to the directory where you unpacked the script. 
-Run the script using the following format, replacing the URL, token, and/or key with your own:
-
-`python3 so4t_user_groups.py --url "https://SUBDOMAIN.stackenterprise.co" --key "YOUR_KEY" --token "YOUR_TOKEN" --csv "PATH_TO_CSV"`
-
-**Example for Stack Internal (Enterprise):**
-`python3 so4t_user_groups.py --url "https://SUBDOMAIN.stackenterprise.co" --key "YOUR_KEY" --token "YOUR_TOKEN" --csv "users.csv"`
-
-The script can take a minute or two to run, particularly as it gathers data via the API. As it runs, it will update the terminal window with the tasks it performs. The script will return you to a command line prompt when it is complete.
-
-## Support, security, and legal
-If you encounter problems using the script, please leave feedback in the Github Issues. You can also clone and change the script to suit your needs. It is provided as-is, with no warranty or guarantee of any kind.
-
-All data is handled locally on the device from which the script is run. The script does not transmit data to other parties, such as Stack Overflow. All of the API calls performed are read only, so there is no risk of editing or adding content on your Stack Internal instance.
+Report problems in [GitHub Issues](https://github.com/StackExchange/so4t_user_groups/issues). The tool is provided as-is, without warranty.
