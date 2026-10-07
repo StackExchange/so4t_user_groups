@@ -4,99 +4,85 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Stack Internal user groups</title>
+  <link rel="stylesheet" href="assets/stacks.min.css">
+  <link rel="stylesheet" href="assets/report-ui.css">
   <style>
-    :root { color-scheme: light; font: 16px/1.5 system-ui, sans-serif; background: #f5f6f8; color: #242729; }
-    * { box-sizing: border-box; }
-    body { margin: 0; }
-    main { max-width: 960px; margin: 0 auto; padding: 32px 20px 64px; }
-    h1, h2 { line-height: 1.2; }
-    h1 { margin: 0 0 8px; font-size: 2rem; }
-    h2 { margin: 0 0 16px; font-size: 1.25rem; }
-    p { margin: 0 0 16px; }
-    .muted { color: #59636e; }
-    .card { background: white; border: 1px solid #d6d9dc; border-radius: 10px; padding: 24px; margin-top: 20px; box-shadow: 0 2px 8px #2427290a; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
-    label { display: block; font-weight: 650; margin-bottom: 6px; }
-    input { width: 100%; border: 1px solid #89919a; border-radius: 5px; padding: 10px 12px; font: inherit; background: white; color: inherit; }
-    input:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid #6bbbf7; outline-offset: 2px; }
-    .hint { color: #59636e; font-size: .875rem; margin: 5px 0 0; }
-    .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 20px; }
-    button, .button-link { display: inline-block; border: 1px solid #0a5f9e; border-radius: 5px; padding: 9px 15px; font: inherit; font-weight: 650; cursor: pointer; background: #0a6db5; color: white; text-decoration: none; }
-    button.secondary, .button-link { background: white; color: #0a5f9e; }
-    button:disabled { cursor: not-allowed; opacity: .5; }
-    .status { border-radius: 6px; padding: 12px 14px; background: #e7f2fa; border: 1px solid #a6cee9; margin-top: 20px; }
-    .status.error { background: #fff0ed; border-color: #e8aaa0; }
-    .status.success { background: #edf7ed; border-color: #a4d5a2; }
-    .table-wrap { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 10px 8px; border-bottom: 1px solid #e3e6e8; text-align: left; vertical-align: top; }
-    th { font-size: .875rem; color: #59636e; }
-    td:first-child, th:first-child { white-space: nowrap; }
-    .empty { color: #59636e; }
+    body.report-app { --report-width: 960px; }
+    .card { padding: 24px; margin-top: 20px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+    .form-field .s-description { margin: 5px 0 0; font-size: 13px; }
+    .required-note { margin: 0 0 18px; color: var(--black-500); font-size: 13px; }
+    .actions { margin-top: 20px; }
+    .status { margin-top: 20px; white-space: pre-wrap; }
+    .review-subtitle { margin-top: 24px !important; }
+    .s-table td:first-child, .s-table th:first-child { white-space: nowrap; }
+    .empty { color: var(--black-500); }
     ol { margin: 0; padding-left: 22px; }
     li + li { margin-top: 6px; }
-    [hidden] { display: none !important; }
+    .browser-note { margin-top: 24px; font-size: 13px; }
   </style>
 </head>
-<body>
+<body class="report-app">
+  <div class="brand-bar"><div class="brand-bar-inner"><span class="brand-name">Stack Internal</span><span class="brand-meta">Browser tools · API v3</span></div></div>
   <main>
-    <h1>Stack Internal user groups</h1>
-    <p class="muted">Add users to existing groups or create new groups from a CSV file using API v3.</p>
+    <header class="page-header"><h1 class="fs-headline2">User groups</h1>
+    <p class="intro">Add users to existing groups or create new groups from a CSV file using API v3.</p></header>
 
     <section class="card" aria-labelledby="setup-heading">
-      <h2 id="setup-heading">1. Connect and choose a CSV</h2>
+      <h2 class="fs-title" id="setup-heading">1. Connect and choose a CSV</h2>
+      <p class="required-note">Required fields <abbr class="s-required-symbol" title="required">*</abbr></p>
       <div class="grid">
         <div>
-          <label for="site-url">Stack Internal site URL</label>
-          <input id="site-url" type="url" placeholder="https://your-site.stackenterprise.co" autocomplete="url" required>
-          <p class="hint">Use the site root, without /api/v3.</p>
+          <label class="s-label" for="site-url">Stack Internal site URL <abbr class="s-required-symbol" title="required">*</abbr></label>
+          <input class="s-input" id="site-url" type="url" placeholder="https://your-site.stackenterprise.co" autocomplete="url" required>
+          <p class="s-description">Use the site root, without /api/v3.</p>
         </div>
         <div>
-          <label for="access-token">OAuth access token</label>
-          <input id="access-token" type="password" autocomplete="off" spellcheck="false" required>
-          <p class="hint">The token needs permission to write user groups. It stays in this page's memory.</p>
+          <label class="s-label" for="access-token">OAuth access token <abbr class="s-required-symbol" title="required">*</abbr></label>
+          <input class="s-input" id="access-token" type="password" autocomplete="off" spellcheck="false" required>
+          <p class="s-description">The token needs permission to write user groups. It stays in this page's memory.</p>
         </div>
         <div>
-          <label for="csv-file">CSV file</label>
-          <input id="csv-file" type="file" accept=".csv,text/csv" required>
-          <p class="hint">Columns: user_email_or_id, group_name_or_id.</p>
+          <label class="s-label" for="csv-file">CSV file <abbr class="s-required-symbol" title="required">*</abbr></label>
+          <input class="s-input" id="csv-file" type="file" accept=".csv,text/csv" required>
+          <p class="s-description">Columns: user_email_or_id, group_name_or_id.</p>
         </div>
       </div>
       <div class="actions">
-        <button id="review-button" type="button">Review changes</button>
-        <button id="template-button" type="button" class="secondary">Download CSV template</button>
+        <button class="s-btn" id="review-button" type="button">Review changes</button>
+        <button id="template-button" type="button" class="s-btn s-btn__tonal">Download CSV template</button>
       </div>
     </section>
 
-    <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+    <div id="status" class="status s-notice s-notice__info" role="status" aria-live="polite" hidden></div>
 
     <section id="review-section" class="card" aria-labelledby="review-heading" hidden>
-      <h2 id="review-heading">2. Review changes</h2>
+      <h2 class="fs-title" id="review-heading">2. Review changes</h2>
       <p id="review-summary"></p>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Group</th><th>Action</th><th>Users to add</th></tr></thead>
+      <div class="table-wrap s-table-container">
+        <table class="s-table s-table__bx">
+          <thead><tr><th scope="col">Group</th><th scope="col">Action</th><th scope="col">Users to add</th></tr></thead>
           <tbody id="changes-body"></tbody>
         </table>
       </div>
-      <h2 style="margin-top:24px">Skipped rows</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>CSV row</th><th>Reason</th></tr></thead>
+      <h2 class="fs-title review-subtitle">Skipped rows</h2>
+      <div class="table-wrap s-table-container">
+        <table class="s-table s-table__bx">
+          <thead><tr><th scope="col">CSV row</th><th scope="col">Reason</th></tr></thead>
           <tbody id="skipped-body"></tbody>
         </table>
       </div>
       <div class="actions">
-        <button id="apply-button" type="button" disabled>Apply changes</button>
+        <button class="s-btn" id="apply-button" type="button" disabled>Apply changes</button>
       </div>
     </section>
 
     <section id="results-section" class="card" aria-labelledby="results-heading" hidden>
-      <h2 id="results-heading">Results</h2>
+      <h2 class="fs-title" id="results-heading">Results</h2>
       <ol id="results-list"></ol>
     </section>
 
-    <p class="hint" style="margin-top:24px">Browser access to the API requires the page to be served from an origin the API permits. If requests are blocked, see the README's browser access instructions.</p>
+    <p class="browser-note s-description">Browser access to the API requires the page to be served from an origin the API permits. If requests are blocked, see the README's browser access instructions.</p>
   </main>
 
   <script>
@@ -111,7 +97,7 @@
     function status(message, kind = '') {
       const el = $('status');
       el.textContent = message;
-      el.className = `status ${kind}`;
+      el.className = `status s-notice ${kind === 'error' ? 's-notice__danger' : kind === 'success' ? 's-notice__success' : 's-notice__info'}`;
       el.hidden = false;
     }
 

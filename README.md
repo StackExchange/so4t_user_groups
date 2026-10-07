@@ -1,6 +1,6 @@
 # Stack Internal user groups
 
-Use [so4t_user_groups.html](so4t_user_groups.html) to add users to existing user groups or create new groups from a CSV file. It is a single, standalone HTML page with no Python installation or other dependencies. The page uses **Stack Internal API v3 only**.
+Use [so4t_user_groups.html](so4t_user_groups.html) to add users to existing user groups or create new groups from a CSV file. Keep the `assets/` folder beside the HTML file so its bundled Stacks styles load. No Python installation or build step is needed. The page uses **Stack Internal API v3 only**.
 
 The Python scripts are kept for historical reference. They depend on the sunset API v2 and are not the supported way to run this tool.
 
@@ -20,7 +20,7 @@ Each row adds one user to one group. Use a user email address or numeric user ID
 
 ## Run the page
 
-1. Open [so4t_user_groups.html](so4t_user_groups.html) in a browser.
+1. Open [so4t_user_groups.html](so4t_user_groups.html) in a browser with `assets/` in the same folder.
 2. Enter the **site root URL** (for example, `https://your-site.stackenterprise.co`), your OAuth access token, and the CSV file.
 3. Select **Review changes**. The page looks up users and groups through API v3 and shows what it will add or create, along with any skipped rows.
 4. Select **Apply changes** after reviewing the list. This sends API v3 requests that change group membership and may create groups. If a request fails, the page stops; earlier group changes may already be saved. Run **Review changes** again before retrying.
@@ -29,7 +29,7 @@ The token and CSV stay in the browser tab; the page does not save them in browse
 
 ### Browser access to the API
 
-The HTML file is self-contained, but browser security still controls whether it can call your Stack Internal site. If you open it as a local `file://` page and the API does not allow that origin, the browser blocks requests. Serve the same HTML file from the Stack Internal site's origin, or from an origin that your API administrator has allowed for CORS. The API must allow the page's origin, `Authorization` and `Content-Type` headers, and `GET` and `POST` methods. Serving the file from `localhost` alone does not grant access to a different API origin.
+Browser security still controls whether the page can call your Stack Internal site. If you open it as a local `file://` page and the API does not allow that origin, the browser blocks requests. Serve the HTML file and `assets/` folder from the Stack Internal site's origin, or from an origin that your API administrator has allowed for CORS. The API must allow the page's origin, `Authorization` and `Content-Type` headers, and `GET` and `POST` methods. Serving the file from `localhost` alone does not grant access to a different API origin.
 
 If **Review changes** reports that it cannot reach the API, check the URL, network access, token, and the browser's developer console for CORS errors. A successful request from a command-line client does not establish that browser access is allowed.
 
